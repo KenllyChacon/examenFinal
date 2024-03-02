@@ -1,0 +1,63 @@
+# docker-compose: es una herramienta que permite definir y ejecutar aplicaciones multi-contenedor.
+# up: crea y comienza a ejecutar los contenedores.
+# -d: ejecuta los contenedores en segundo plano.
+
+  #docker-compose up -d
+
+version: '3'
+services:
+  proxy:
+    image: traefik
+    # Variables de , -D
+    # --api.insecure=true: habilita la API de Traefik, que es una interfaz web que permite ver el estado de los servicios.
+    # --providers.docker: habilita el proveedor de Docker, que permite a Traefik leer la información de los contenedores.
+    command: --api.insecure=true --providers.docker
+    ports:
+      # El puerto 8080 del host se va a exponer en el puerto 8080 del contenedor.
+      - "8080:8080" #HOST:CONTENEDOR
+      # El puerto 8081 del host se va a exponer en el puerto 80 del contenedor proxy.
+      - "8081:80"
+    volumes:
+      # var/run/docker.sock: es el socket de Docker, que permite a Traefik leer la información de los contenedores.
+      # /var/run/docker.sock:/var/run/docker.sock: el archivo docker.sock del host se va a montar en el archivo docker.sock del contenedor.
+      # entonces, el contenedor va a poder leer la información de los contenedores del host.
+      - /var/run/docker.sock:/var/run/docker.sock # /HOST:/CONTENEDOR
+#
+  app-authors-service:
+    image: darkenblue952518/app-authors
+    deploy:
+      replicas: 3
+    expose: #expose: exponer(abrir) el puerto del contenedor al host.
+      - 8080
+    labels: # labels: son etiquetas que se le pueden poner a los servicios, para que Traefik pueda leerlas y configurar el enrutamiento.
+      # "traefik.http.routers.authors.rule=PathPrefix(`/app-authors`)": es una regla que indica que el servicio de autores se va a acceder a través de la URL /app-authors.
+      - "traefik.http.routers.authors.rule=PathPrefix(`/app-authors`)"
+      # "traefik.http.middlewares.authors.stripprefix.prefixes=/app-authors": es un middleware que indica que la URL /app-authors se va a quitar del request antes de
+      # llegar al servicio de autores.
+      - "traefik.http.middlewares.authors.stripprefix.prefixes=/app-authors"
+      # "traefik.http.routers.authors.middlewares=authors": es un middleware que indica que el middleware authors se va a aplicar al servicio de autores.
+      - "traefik.http.routers.authors.middlewares=authors"
+    #ports: #ports: publica el puerto del contenedor en el host, el puerto del host es el primer número y el del contenedor el segundo.
+    #  - "8080:8080" #HOST:CONTENEDOR
+    # lo de arrriba no nos sirve, porque si tenemos dos instancias de este servicio, el puerto 8080 ya está ocupado.
+
+    #-------------------------------------------------------------------------------------------------------------------
+  app-books-service:
+    image: darkenblue952518/app-books
+    environment:
+      # La variable de ambiente APP_AUTHORS_URL es la URL del servicio de autores, que se va a utilizar en el servicio de libros.
+      # La URL del servicio de autores es http://proxy/app-authors, porque el servicio de autores se va a acceder a través de la URL /app-authors.
+      APP_AUTHORS_URL: http://proxy/app-authors
+    deploy:
+      replicas: 2
+    expose:
+    # El expose es para el contenedor, y el puerto 8080 es el que está escuchando el contenedor.
+    # y el 9090 es el puerto que se va a exponer en el host.
+    # entonces el puerto 8080 del contenedor se va a exponer en el puerto 9090 del host.
+      - 8080
+    labels:
+      - "traefik.http.routers.books.rule=PathPrefix(`/app-books`)"
+      - "traefik.http.middlewares.books.stripprefix.prefixes=/app-books"
+      - "traefik.http.routers.books.middlewares=books"
+    #ports:
+    #  - "9090:8080" #HOST:CONTENEDOR

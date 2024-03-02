@@ -1,0 +1,13 @@
+server:
+  port: 8080
+
+db:
+  kind: postgresql
+  username: distribuida_a0ex_user
+  password: ohqVgg1A6M2aLOZp9BmUlSLS5z6NAEj9
+  url: jdbc:postgresql://dpg-cmq1sl21hbls73fgvf60-a.oregon-postgres.render.com/distribuida_a0ex
+
+hibernate:
+  ddl:
+    auto: none
+

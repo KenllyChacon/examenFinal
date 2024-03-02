@@ -1,0 +1,127 @@
+/*
+ * Copyright (c) 2018, 2023 Oracle and/or its affiliates.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+plugins {
+    id 'java'
+    id 'org.kordamp.gradle.jandex' version '0.6.0'
+    id 'application'
+    id 'io.freefair.lombok' version '8.4'
+}
+
+group = 'io.helidon.examples'
+version = '1.0-SNAPSHOT'
+
+description = """helidon-quickstart-mp"""
+
+sourceCompatibility = 17
+targetCompatibility = 17
+tasks.withType(JavaCompile) {
+    options.encoding = 'UTF-8'
+}
+
+ext {
+    helidonversion = '3.2.6'
+    mainClass='io.helidon.microprofile.cdi.Main'
+}
+
+repositories {
+    mavenCentral()
+    mavenLocal()
+    gradlePluginPortal()
+}
+
+dependencies {
+    dependencies {
+        // Configuración de Helidon
+        implementation enforcedPlatform("io.helidon:helidon-dependencies:${project.helidonversion}")
+
+        // CDI (Contexts and Dependency Injection) para Helidon
+        testImplementation 'io.helidon.microprofile.cdi:helidon-microprofile-cdi:3.2.2'
+        testImplementation 'io.helidon.integrations.cdi:helidon-integrations-cdi-hibernate:4.0.0-M1'
+
+        // JAX-RS (Java API for RESTful Web Services) para Helidon
+        implementation 'io.helidon.microprofile.server:helidon-microprofile-server:4.0.0-M1'
+        implementation 'org.glassfish.jersey.media:jersey-media-json-binding'
+
+        // JPA (Java Persistence API) para Helidon
+        implementation 'io.helidon.integrations.db:helidon-integrations-db-pgsql:4.0.0-M1'
+        implementation 'jakarta.persistence:jakarta.persistence-api:3.1.0'
+        implementation 'org.hibernate.orm:hibernate-core:6.3.0.CR1'
+
+        // Driver JDBC para PostgreSQL
+        implementation("org.postgresql:postgresql:42.3.1")
+
+        // Gateway para Helidon
+        implementation 'io.helidon.microprofile.server:helidon-microprofile-server:4.0.0-M1'
+
+
+        // OpenAPI para documentación de APIs
+        implementation 'io.helidon.microprofile.openapi:helidon-microprofile-openapi:4.0.0-M1'
+        implementation 'org.eclipse.microprofile.openapi:microprofile-openapi-api:3.1.1'
+
+        // Configuración de Helidon
+        implementation 'io.helidon.microprofile.config:helidon-microprofile-config:4.0.0-M1'
+        testImplementation 'io.helidon.microprofile.bundles:helidon-microprofile:4.0.0-M1'
+
+        // Bundle de Helidon MicroProfile
+        implementation 'io.helidon.microprofile.bundles:helidon-microprofile'
+
+        // RuntimeOnly para Jandex y Activation API
+        runtimeOnly 'org.jboss:jandex'
+        runtimeOnly 'jakarta.activation:jakarta.activation-api'
+
+        // implement helidon 3.2.6 health
+        implementation 'io.helidon.health:helidon-health-checks'
+    }
+}
+
+
+test {
+    useJUnitPlatform()
+}
+
+task copyLibs(type: Copy) {
+    from configurations.runtimeClasspath
+    into 'build/libs/libs'
+}
+
+copyLibs.dependsOn jar
+assemble.dependsOn copyLibs
+
+jar {
+    archiveFileName = "app-books.jar"
+    manifest {
+        attributes ('Main-Class': "${project.mainClass}" ,
+                'Class-Path': configurations.runtimeClasspath.files.collect { "libs/$it.name" }.join(' ')
+        )
+    }
+}
+
+application {
+    mainClass = "${project.mainClass}"
+}
+
+task moveBeansXML {
+    doLast {
+        ant.move file: "${buildDir}/resources/main/META-INF/beans.xml",
+                todir: "${buildDir}/classes/java/main/META-INF"
+    }
+}
+compileTestJava.dependsOn jandex
+jar.dependsOn jandex
+test.dependsOn moveBeansXML
+run.dependsOn moveBeansXML
+
